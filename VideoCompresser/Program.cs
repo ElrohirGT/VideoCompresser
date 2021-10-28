@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using static ConsoleUtilitiesLite.ConsoleUtilitiesLite;
 
@@ -19,11 +20,26 @@ namespace VideoCompresser
         public static readonly string FFPLAY_PATH = Path.Combine(AppContext.BaseDirectory, @"ffmpeg 4.4\ffplay.exe");
         public static readonly string FFPROBE_PATH = Path.Combine(AppContext.BaseDirectory, @"ffmpeg 4.4\ffprobe.exe");
 
+        static Program()
+        {
+            string baseDirectory = Path.Combine(AppContext.BaseDirectory, @"ffmpeg 4.4");
+            FFMPEG_PATH = Path.Combine(baseDirectory, "ffmpeg");
+            FFPLAY_PATH = Path.Combine(baseDirectory, "ffplay");
+            FFPROBE_PATH = Path.Combine(baseDirectory, "ffprobe");
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                FFMPEG_PATH += ".exe";
+                FFPLAY_PATH += ".exe";
+                FFPROBE_PATH += ".exe";
+            }
+        }
+
         static void Main(string[] args)
         {
             Console.OutputEncoding = System.Text.Encoding.Unicode;
             Console.Clear();
-            
+
             //Console.WriteLine(FFMPEG_PATH);
             //Console.WriteLine();
             //Console.WriteLine(FFPLAY_PATH);
