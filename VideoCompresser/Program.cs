@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using static ConsoleUtilitiesLite.ConsoleUtilitiesLite;
+using static ConsoleUtilitiesLite.ConsoleUtilities;
 
 namespace VideoCompresser
 {
@@ -61,17 +61,17 @@ namespace VideoCompresser
                 LogErrorMessage("Please write a valid path!");
             }
 
-            Console.Write("Do you want to delete the file after compressing? (y/n): ");
-            bool deleteFiles = Console.ReadLine().Trim().ToLower().Equals("y");
-            if (deleteFiles)
-                LogWarningMessage("Files will be deleted after compressing.");
-            else
+            Console.Write("Do you want to delete the file after compressing? (y/n, default is yes): ");
+            bool notDeleteFiles = Console.ReadLine().Trim().ToLower().Equals("n");
+            if (notDeleteFiles)
                 LogWarningMessage("Files will not be deleted after compressing.");
+            else
+                LogWarningMessage("Files will be deleted after compressing.");
 
-            int maxNumberOfVideos = 5;
+            int maxNumberOfVideos = 2;
             while (true)
             {
-                Console.Write("How many videos at a time can be converted? (more may slow the computer, default is 5): ");
+                Console.Write($"How many videos at a time can be converted? (more may slow the computer, default is {maxNumberOfVideos}): ");
                 string answer = Console.ReadLine().Trim();
                 if (string.IsNullOrEmpty(answer))
                     break;
@@ -81,9 +81,8 @@ namespace VideoCompresser
             }
             LogWarningMessage("{0} videos will be converted at the same time.", maxNumberOfVideos);
 
-            //TODO Make compress videos recursively
             SubDivision();
-            new VideoCompresser(maxNumberOfVideos).CompressAllVideos(path, deleteFiles);
+            new VideoCompresser(maxNumberOfVideos).CompressAllVideos(path, notDeleteFiles);
         }
 
         #region Static Methods
