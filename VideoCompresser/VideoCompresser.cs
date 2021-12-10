@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using static ConsoleUtilitiesLite.ConsoleUtilitiesLite;
+using static ConsoleUtilitiesLite.ConsoleUtilities;
 
 namespace VideoCompresser
 {
