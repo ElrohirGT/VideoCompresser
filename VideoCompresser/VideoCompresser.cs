@@ -144,7 +144,7 @@ namespace VideoCompresser
             Division();
             LogSuccessMessage("FINISHED!");
 
-            LogWarningMessage("It took {0} time to compress {1} videos.", timer.GetTimeSpan(), _videosCount);
+            LogWarningMessage("It took {0} time to compress {1} videos.", timer.RecordedTime, _videosCount);
             LogWarningMessage("Videos Compressed: {0}", _videosCount);
             LogWarningMessage("Success rate: {0:P1}", SuccessRate);
 
