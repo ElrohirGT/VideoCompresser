@@ -66,6 +66,7 @@ namespace VideoCompresser
             SubDivision();
             LogInfoMessage("Press s, to cancel after the current compression finished.");
             LogInfoMessage("Press q, force quit and cancel all compressions.");
+            SubDivision();
 
             CancellationTokenSource softCTS = new();
             CancellationTokenSource instantCTS = new();
@@ -102,8 +103,6 @@ namespace VideoCompresser
             stopWatch.StopRecording();
 
             Division();
-            LogInfoMessage($"Time: {stopWatch.RecordedTime}.");
-
             if (errors.Count == 0)
                 LogSuccessMessage("NO ERRORS!");
             else
@@ -116,6 +115,7 @@ namespace VideoCompresser
                         LogInfoMessage($"\t- {item}");
                 }
             }
+            LogInfoMessage($"Time: {stopWatch.RecordedTime}.");
         }
 
         private static string ReadConsoleLine() => (Console.ReadLine() ?? string.Empty);
