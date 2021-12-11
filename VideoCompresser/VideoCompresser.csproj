@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ConsoleUtilitiesLite" Version="5.0.1" />
+    <PackageReference Include="ConsoleUtilitiesLite" Version="5.1.0" />
     <PackageReference Include="FFMpegCore" Version="4.6.0" />
   </ItemGroup>
 

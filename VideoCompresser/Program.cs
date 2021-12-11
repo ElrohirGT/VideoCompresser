@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using static ConsoleUtilitiesLite.ConsoleUtilities;
 
@@ -49,20 +51,20 @@ namespace VideoCompresser
 
             Console.Title = "Video Compresser";
             ShowTitle(Title);
-            ShowVersion(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString());
+            ShowVersion(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty);
 
             string path;
             while (true)
             {
                 Console.Write("Please insert a path: ");
-                path = Console.ReadLine().Trim();
+                path = ReadConsoleLine().Trim();
                 if (Directory.Exists(path))
                     break;
                 LogErrorMessage("Please write a valid path!");
             }
 
             Console.Write("Do you want to delete the file after compressing? (y/n, default is yes): ");
-            bool notDeleteFiles = Console.ReadLine().Trim().ToLower().Equals("n");
+            bool notDeleteFiles = ReadConsoleLine().Trim().ToLower().Equals("n");
             if (notDeleteFiles)
                 LogWarningMessage("Files will not be deleted after compressing.");
             else
@@ -72,7 +74,7 @@ namespace VideoCompresser
             while (true)
             {
                 Console.Write($"How many videos at a time can be converted? (more may slow the computer, default is {maxNumberOfVideos}): ");
-                string answer = Console.ReadLine().Trim();
+                string answer = ReadConsoleLine().Trim();
                 if (string.IsNullOrEmpty(answer))
                     break;
                 if (int.TryParse(answer, out maxNumberOfVideos))
@@ -82,60 +84,60 @@ namespace VideoCompresser
             LogWarningMessage("{0} videos will be converted at the same time.", maxNumberOfVideos);
 
             SubDivision();
-            new VideoCompresser(maxNumberOfVideos).CompressAllVideos(path, notDeleteFiles);
-        }
+            LogInfoMessage("Press s, to cancel after the current compression finished.");
+            LogInfoMessage("Press q, force quit and cancel all compressions.");
 
-        #region Static Methods
-        internal static Task<string> ExecuteCommandAsync(ConsoleCommand command)
-        {
-            try
+            CancellationTokenSource softCTS = new();
+            CancellationTokenSource instantCTS = new();
+
+            Task.Run(() =>
             {
-                TaskCompletionSource<string> taskSource = new TaskCompletionSource<string>();
-                ProcessStartInfo procStartInfo =
-                    new ProcessStartInfo(command.Command, command.Args)
-                    {
-                        RedirectStandardOutput = true,
-                        RedirectStandardInput = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = false,
-                        WindowStyle = ProcessWindowStyle.Hidden,
-                    };
-
-                Process process = new Process() { StartInfo = procStartInfo, EnableRaisingEvents = true };
-                process.Exited += (sender, args) =>
+                while (true)
                 {
-                    taskSource.SetResult(process.StandardOutput.ReadToEnd());
-                    process.Dispose();
-                };
+                    string command = ReadConsoleLine();
+                    if (command == "s")
+                        softCTS.Cancel();
+                    if (command == "q")
+                        instantCTS.Cancel();
+                }
+            });
 
-                process.Start();
-                return taskSource.Task;
-            }
-            catch (Exception) { throw; }
-        }
-        internal static string ExecuteCommandSync(ConsoleCommand command)
-        {
-            try
+            var stopWatch = new StopWatch();
+            stopWatch.StartRecording();
+            VideoCompresser videoCompresser = new(maxNumberOfVideos);
+            int previousLogLength = 1;
+            LogInfoMessage("Current: 0.00%; 0/0 videos.");
+            videoCompresser.Report += (r) =>
             {
-                ProcessStartInfo procStartInfo =
-                    new ProcessStartInfo(command.Command, command.Args)
-                    {
-                        RedirectStandardOutput = true,
-                        RedirectStandardInput = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = false,
-                        WindowStyle = ProcessWindowStyle.Hidden,
-                    };
+                ClearPreviousLog(previousLogLength);
+                
+                StringBuilder builder = new(previousLogLength);
+                foreach (var item in r.Percentages)
+                    builder.AppendLine($"{item.Key}: {item.Value:N2}%");
+                builder.AppendLine($"{r.CompressedVideosCount}/{r.VideosCount} videos.");
+                
+                previousLogLength = LogInfoMessage(builder.ToString());
+            };
+            var errors = videoCompresser.CompressAllVideos(path, !notDeleteFiles, softCTS.Token, instantCTS.Token);
+            stopWatch.StopRecording();
 
-                using Process process = new Process() { StartInfo = procStartInfo };
-                process.Start();
-                process.WaitForExit();
+            Division();
+            LogInfoMessage($"Time: {stopWatch.RecordedTime}.");
 
-                string result = process.StandardOutput.ReadToEnd();
-                return result;
+            if (errors.Count == 0)
+                LogSuccessMessage("NO ERRORS!");
+            else
+            {
+                LogErrorMessage("ERRORS:");
+                foreach (var error in errors)
+                {
+                    LogErrorMessage(error.Key);
+                    foreach (var item in error.Value)
+                        LogInfoMessage($"\t- {item}");
+                }
             }
-            catch (Exception) { throw; }
         }
-        #endregion
+
+        private static string ReadConsoleLine() => (Console.ReadLine() ?? string.Empty);
     }
 }

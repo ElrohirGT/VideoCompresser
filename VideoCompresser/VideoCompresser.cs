@@ -4,234 +4,161 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using static ConsoleUtilitiesLite.ConsoleUtilities;
+
+using FFMpegCore;
+using FFMpegCore.Enums;
 
 namespace VideoCompresser
 {
-    public partial class VideoCompresser : IDisposable
+    public partial class VideoCompresser
     {
-        const int CRF = 30;
-        const string COMMAND_FORMAT = "-hide_banner -loglevel fatal -i \"{0}\" -c:v libx265 -c:a copy -crf {2} \"{1}\"";
-        int _videosCount = 0;
-        Video[] _videos;
-        bool _disposed;
-        readonly BlockingCollection<string> _errors = new BlockingCollection<string>();
-        readonly Semaphore _gate;
-        readonly HashSet<string> _processedPaths = new HashSet<string>();
+        private const int CRF = 30;
+        private readonly int _maxNumberOfVideos;
+        private readonly IEnumerable<string> _validExtensions = new string[] { ".mp4", ".webm" };
+        private static object _lock = new();
 
-        public int ErrorProbability => _errors.Count / (_videosCount == 0 ? 1 : _videosCount);
-        public float SuccessRate => 1 - ErrorProbability;
-        public VideoCompresser(int maxVideosAtATime) => _gate = new Semaphore(maxVideosAtATime, maxVideosAtATime);
+        public event Action<CompressingReport> Report;
 
-        public void CompressAllVideos(string path, bool deleteFiles = false)
+        public VideoCompresser(int maxNumberOfVideos) => _maxNumberOfVideos = maxNumberOfVideos;
+
+        public IDictionary<string, List<string>> CompressAllVideos(string path, bool deleteFiles, CancellationToken softToken, CancellationToken instantToken)
         {
-            StopWatch stopWatch = new StopWatch();
-            stopWatch.StartRecording();
-
-            CompressVideosInFolderRecursively(path, deleteFiles);
-
-            stopWatch.StopRecording();
-            ShowStats(stopWatch);
-            if (_errors.Count != 0)
+            ConcurrentDictionary<string, List<string>> errors = new();
+            foreach (var subDirectory in Directory.GetDirectories(path))
             {
-                Console.WriteLine("Press any key to exit...");
-                Console.ReadLine();
+                var subErrors = CompressAllVideos(subDirectory, deleteFiles, softToken, instantToken);
+                foreach (var error in subErrors)
+                    AddError(errors, error.Key, error.Value);
             }
+            CompressVideosInFolder(path, deleteFiles, errors, softToken, instantToken);
+            return errors;
         }
 
-        void CompressVideosInFolderRecursively(string path, bool deleteFiles = false)
+        private static void AddError(ConcurrentDictionary<string, List<string>> errors, string key, List<string> value)
         {
-            foreach (var directory in Directory.GetDirectories(path))
-                CompressVideosInFolderRecursively(directory, deleteFiles);
-
-            CompressVideosInfolder(path, deleteFiles);
+            errors.TryAdd(key, new List<string>());
+            errors[key].AddRange(value);
+        }
+        private static void AddError(ConcurrentDictionary<string, List<string>> errors, string key, string value)
+        {
+            errors.TryAdd(key, new List<string>());
+            errors[key].Add(value);
         }
 
-        public void CompressVideosInfolder(string path, bool deleteFiles = false, bool showStats = false)
+        private void CompressVideosInFolder(string path, bool deleteFiles, ConcurrentDictionary<string, List<string>> errors, CancellationToken soft, CancellationToken instantToken)
         {
-            StopWatch stopWatch = new StopWatch();
-            stopWatch.StartRecording();
+            CompressingReportBuilder reportInstance = new();
+            string outputPath = Path.Combine(path, "Done");
+            Directory.CreateDirectory(outputPath);
 
-            LogInfoMessage("Gathering information...");
-            IEnumerable<string> videosPaths = VideoPathFinder.FindVideosPaths(path);
-
-            _videos = VideoInfoGatherer.GetAllVideosInfo(videosPaths);
-
-            LogInfoMessage("Sorting paths...");
-            Array.Sort(_videos, BynumberOfFramesASC);
-
-            LogInfoMessage("Finished! Starting compression...");
-            try
+            var sortedVideos = GetSortedVideos(path, errors, reportInstance);
+            ParallelOptions configuration = new() { MaxDegreeOfParallelism = _maxNumberOfVideos };
+            Parallel.ForEach(sortedVideos, configuration, (video) =>
             {
-                string outputDirectory = Directory.CreateDirectory(Path.Combine(path, "Done")).FullName;
-
-                Task.WaitAll(
-                    Task.Run(() => CompressLargeVideos(deleteFiles, outputDirectory)),
-                    Task.Run(() => CompressShortVideos(deleteFiles, outputDirectory))
-                );
-
-                if (deleteFiles)
-                    MoveProcessedFilesToMainPath(outputDirectory, path);
-
-            }
-            catch (Exception ex) { LogErrorMessage(ex.ToString()); }
-
-            stopWatch.StopRecording();
-            Console.Beep();
-            if (showStats)
-                ShowStats(stopWatch);
-        }
-
-        private void MoveProcessedFilesToMainPath(string processedFilesDirectory, string mainPath)
-        {
-            foreach (var filePath in VideoPathFinder.FindVideosPaths(processedFilesDirectory))
-            {
+                string outputFilePath = Path.Combine(outputPath, video.FileNameWithoutExtension+".mp4");
                 try
                 {
-                    File.Move(filePath, GetEndPath(filePath, mainPath));
+                    soft.ThrowIfCancellationRequested();
+                    instantToken.ThrowIfCancellationRequested();
+                    CompressVideo(video, outputFilePath, instantToken, reportInstance);
+
+                    var newVideoInfo = FFProbe.Analyse(outputFilePath);
+                    if (newVideoInfo.Duration.TotalSeconds != video.Duration.TotalSeconds)
+                        AddError(errors, video.Path, $"Durations of output video and original video are different, please check them manually.");
+                    else if (deleteFiles)
+                        File.Delete(video.Path);
                 }
-                catch (IOException)
+                catch (OperationCanceledException e) { }
+                catch (Exception e)
                 {
-                    File.Delete(filePath);
-                    LogWarningMessage($"Deleted erroneos compression of: {Path.GetFileName(filePath)}");
+                    AddError(errors, video.Path, $"Error compressing the video: {e.Message}");
+                    File.Delete(outputFilePath);
                 }
-                catch (Exception) { }
-            }
+                finally
+                {
+                    reportInstance.IncrementCompressedVideosCount();
+                    OnReport(100, video.FileName, reportInstance);
+                    reportInstance.RemovePercentage(video.FileName);
+                }
+            });
 
-            try
-            {
-                Directory.Delete(processedFilesDirectory);
-            }
-            catch (Exception) { }
-
-            LogSuccessMessage($"Succesfully moved all files to {mainPath}");
-        }
-
-        int BynumberOfFramesASC(Video video1, Video video2) => video1.NumberOfFrames.CompareTo(video2.NumberOfFrames);
-
-        private Task CompressShortVideos(bool deleteFiles, string outputDirectory)
-        {
-            List<Task> tasks = new List<Task>();
-            for (int i = 0; i < _videos.Length; i++)
-            {
-                if (VideoHasBeenProcessed(_videos[i].Path))
-                    continue;
-                _gate.WaitOne();
-                tasks.Add(CompressVideo(_videos[i], deleteFiles, outputDirectory));
-            }
-
-            Task.WaitAll(tasks.ToArray());
-            return Task.CompletedTask;
-        }
-        private Task CompressLargeVideos(bool deleteFiles, string outputDirectory)
-        {
-            for (int i = _videos.Length - 1; i >= 0; i--)
-            {
-                if (VideoHasBeenProcessed(_videos[i].Path))
-                    continue;
-                _gate.WaitOne();
-                CompressVideo(_videos[i], deleteFiles, outputDirectory).Wait();
-            }
-
-            return Task.CompletedTask;
-        }
-        private bool VideoHasBeenProcessed(string videoPath)
-        {
-            lock (_processedPaths) { return !_processedPaths.Add(videoPath); }
-        }
-        void ShowStats(StopWatch timer)
-        {
-            Division();
-            LogSuccessMessage("FINISHED!");
-
-            LogWarningMessage("It took {0} time to compress {1} videos.", timer.RecordedTime, _videosCount);
-            LogWarningMessage("Videos Compressed: {0}", _videosCount);
-            LogWarningMessage("Success rate: {0:P1}", SuccessRate);
-
-            foreach (var error in _errors)
-                LogErrorMessage(error);
-        }
-
-        async Task CompressVideo(Video video, bool deleteFiles, string outputDirectory)
-        {
-            if (!File.Exists(video.Path))
-            {
-                _gate.Release();
+            if (!deleteFiles)
                 return;
-            }
 
-            string endPath = GetEndPath(video.Path, outputDirectory);
-            string fileName = Path.GetFileName(video.Path);
-            ConsoleCommand command = new ConsoleCommand()
+            Parallel.ForEach(Directory.GetFiles(outputPath, "*.mp4"), newVideoPath =>
             {
-                Command = Program.FFMPEG_PATH,
-                Args = string.Format(COMMAND_FORMAT, video.Path, endPath, CRF)
-            };
+                string destFilePath = Path.Combine(path, Path.GetFileName(newVideoPath));
+                File.Move(newVideoPath, destFilePath);
+            });
 
             try
             {
-                LogSuccessMessage($"Compressing {fileName}:");
-                await Program.ExecuteCommandAsync(command);
+                Directory.Delete(outputPath);
+            }
+            catch (Exception e)
+            {
+                AddError(errors, outputPath, "Couldn't clean the directory, please check it and delete it manually.");
+            }
+        }
 
-                Video convertedVideo = Video.Factory.Create(endPath);
-                if (!CloseEquals(video.DurationInSeconds, convertedVideo.DurationInSeconds))
+        private void CompressVideo(Video video, string outputFilePath, CancellationToken token, CompressingReportBuilder reportInstance)
+        {
+            FFMpegArguments
+                .FromFileInput(video.Path)
+                .OutputToFile(
+                    outputFilePath,
+                    false,
+                    options => options.WithVideoCodec("libx265").WithConstantRateFactor(CRF).WithFastStart())
+                .NotifyOnProgress(p=>OnReport(p, video.FileName, reportInstance), video.Duration)
+                .CancellableThrough(token)
+                .ProcessSynchronously();
+        }
+
+        private void OnReport(double percentage, string fileName, CompressingReportBuilder reportInstance)
+        {
+            reportInstance.ChangePercentage(fileName, percentage);
+            lock (_lock)
+                Report?.Invoke(reportInstance.AsReadonly());
+        }
+
+        private IEnumerable<Video> GetSortedVideos(string path, ConcurrentDictionary<string, List<string>> errors, CompressingReportBuilder reportInstance)
+        {
+            BlockingSortedSet<Video> videos = new(Comparer<Video>.Create((v1, v2) => v1.TotalFrames.CompareTo(v2.TotalFrames)));
+            Parallel.ForEach(GetVideoPaths(path), videoPath =>
+            {
+                IMediaAnalysis mediaInfo = FFProbe.Analyse(videoPath);
+                VideoStream? videoStream = mediaInfo.PrimaryVideoStream;
+                long? totalFrames = (long?)(videoStream?.Duration.TotalSeconds * videoStream?.AvgFrameRate);
+                if (totalFrames is null)
                 {
-                    LogWarningMessage($"Durations different of {Path.GetFileName(video.Path)}.");
-                    _errors.Add($"Duration different on: {video.Path}");
-                    return;
+                    errors.TryAdd(videoPath, new List<string>());
+                    errors[videoPath].Add("Couldn't get the number of frames!");
                 }
-
-                if (deleteFiles)
-                    File.Delete(video.Path);
-
-                SubDivision();
-                LogSuccessMessage($"Finished compressing: {fileName}");
-                SubDivision();
-            }
-            catch (Exception ex)
-            {
-                _errors.Add($"Error on: {Path.GetFileName(video.Path)}");
-                LogErrorMessage(ex.ToString());
-            }
-            finally
-            {
-                Interlocked.Increment(ref _videosCount);
-                _gate.Release();
-            }
-        }
-
-        private bool CloseEquals(double durationInSeconds1, double durationInSeconds2) => Math.Abs(durationInSeconds1 - durationInSeconds2) < 1;
-
-        string GetEndPath(string filePath, string outputDirectory)
-        {
-            string fileName = Path.GetFileNameWithoutExtension(filePath);
-            string endPath = Path.Combine(outputDirectory, $"{fileName}.mp4");
-            return endPath;
-        }
-
-        ~VideoCompresser()
-        {
-            Dispose(false);
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        private void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                if (disposing)
+                else
                 {
-                    _errors.Dispose();
-                    _gate.Dispose();
+                    Video video = new(videoPath, totalFrames.Value, videoStream.Duration, videoStream.AvgFrameRate);
+                    if (videos.TryAdd(video))
+                        reportInstance.IncrementVideosCount();
+                    else
+                    {
+                        errors.TryAdd(videoPath, new List<string>());
+                        errors[videoPath].Add("Sorry, but something went wrong trying to create a video instance.");
+                    }
                 }
-                _gate.Close();
-            }
-            _disposed = true;
+            });
+            return videos;
+        }
+
+        private IEnumerable<string> GetVideoPaths(string path)
+        {
+            string[] filePaths = Directory.GetFiles(path);
+            List<string> videoPaths = new(filePaths.Length);
+            
+            foreach (var filePath in filePaths)
+                foreach (var validExtension in _validExtensions)
+                    if (filePath.EndsWith(validExtension))
+                        videoPaths.Add(filePath);
+            return videoPaths;
         }
     }
 }
