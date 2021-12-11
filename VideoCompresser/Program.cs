@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using static ConsoleUtilitiesLite.ConsoleUtilities;
@@ -18,28 +19,9 @@ namespace VideoCompresser
             "──▀▄▀─ ▀▀▀ ▀▀▀─ ▀▀▀ ▀▀▀▀ ░█▄▄█ ▀▀▀▀ ▀───▀ █▀▀▀ ▀─▀▀ ▀▀▀ ▀▀▀ ▀▀▀ ▀▀▀ ▀─▀▀"
         };
 
-        public static readonly string FFMPEG_PATH = Path.Combine(AppContext.BaseDirectory, @"ffmpeg 4.4\ffmpeg.exe");
-        public static readonly string FFPLAY_PATH = Path.Combine(AppContext.BaseDirectory, @"ffmpeg 4.4\ffplay.exe");
-        public static readonly string FFPROBE_PATH = Path.Combine(AppContext.BaseDirectory, @"ffmpeg 4.4\ffprobe.exe");
-
-        static Program()
-        {
-            string baseDirectory = Path.Combine(AppContext.BaseDirectory, @"ffmpeg 4.4");
-            FFMPEG_PATH = Path.Combine(baseDirectory, "ffmpeg");
-            FFPLAY_PATH = Path.Combine(baseDirectory, "ffplay");
-            FFPROBE_PATH = Path.Combine(baseDirectory, "ffprobe");
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                FFMPEG_PATH += ".exe";
-                FFPLAY_PATH += ".exe";
-                FFPROBE_PATH += ".exe";
-            }
-        }
-
         static void Main(string[] args)
         {
-            Console.OutputEncoding = System.Text.Encoding.Unicode;
+            Console.OutputEncoding = Encoding.Unicode;
             Console.Clear();
 
             //Console.WriteLine(FFMPEG_PATH);
@@ -58,10 +40,15 @@ namespace VideoCompresser
             {
                 Console.Write("Please insert a path: ");
                 path = ReadConsoleLine().Trim();
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    path = Regex.Unescape(path);
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    path = path.Replace(@"""", string.Empty);
                 if (Directory.Exists(path))
                     break;
                 LogErrorMessage("Please write a valid path!");
             }
+            LogWarningMessage($"The path that will be used is: {path}");
 
             Console.Write("Do you want to delete the file after compressing? (y/n, default is yes): ");
             bool notDeleteFiles = ReadConsoleLine().Trim().ToLower().Equals("n");
@@ -81,7 +68,7 @@ namespace VideoCompresser
                     break;
                 LogErrorMessage("Please write a valid number!");
             }
-            LogWarningMessage("{0} videos will be converted at the same time.", maxNumberOfVideos);
+            LogWarningMessage($"{maxNumberOfVideos} videos will be converted at the same time.");
 
             SubDivision();
             LogInfoMessage("Press s, to cancel after the current compression finished.");
@@ -110,12 +97,12 @@ namespace VideoCompresser
             videoCompresser.Report += (r) =>
             {
                 ClearPreviousLog(previousLogLength);
-                
+
                 StringBuilder builder = new(previousLogLength);
                 foreach (var item in r.Percentages)
                     builder.AppendLine($"{item.Key}: {item.Value:N2}%");
                 builder.AppendLine($"{r.CompressedVideosCount}/{r.VideosCount} videos.");
-                
+
                 previousLogLength = LogInfoMessage(builder.ToString());
             };
             var errors = videoCompresser.CompressAllVideos(path, !notDeleteFiles, softCTS.Token, instantCTS.Token);
