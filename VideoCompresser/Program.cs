@@ -23,15 +23,8 @@ namespace VideoCompresser
         {
             Console.OutputEncoding = Encoding.Unicode;
             Console.Clear();
-
-            //Console.WriteLine(FFMPEG_PATH);
-            //Console.WriteLine();
-            //Console.WriteLine(FFPLAY_PATH);
-            //Console.WriteLine();
-            //Console.WriteLine(FFPROBE_PATH);
-            //Console.WriteLine();
-
             Console.Title = "Video Compresser";
+
             ShowTitle(Title);
             ShowVersion(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty);
 
