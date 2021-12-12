@@ -80,6 +80,8 @@ namespace VideoCompresser
                         softCTS.Cancel();
                     if (command.KeyChar == 'q')
                         instantCTS.Cancel();
+                    if (instantCTS.IsCancellationRequested)
+                        break;
                 }
             });
 
@@ -115,6 +117,7 @@ namespace VideoCompresser
                 }
             }
             LogInfoMessage($"Time: {stopWatch.RecordedTime}.");
+            Console.ReadLine();
         }
 
         private static string ReadConsoleLine() => (Console.ReadLine() ?? string.Empty);
