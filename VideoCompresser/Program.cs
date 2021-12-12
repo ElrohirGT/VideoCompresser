@@ -75,10 +75,10 @@ namespace VideoCompresser
             {
                 while (true)
                 {
-                    string command = ReadConsoleLine();
-                    if (command == "s")
+                    ConsoleKeyInfo command = Console.ReadKey(true);
+                    if (command.KeyChar == 's')
                         softCTS.Cancel();
-                    if (command == "q")
+                    if (command.KeyChar == 'q')
                         instantCTS.Cancel();
                 }
             });
