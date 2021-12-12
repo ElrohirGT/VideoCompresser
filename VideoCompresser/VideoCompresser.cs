@@ -67,18 +67,14 @@ namespace VideoCompresser
                         AddError(errors, video.Path, $"Durations of output video and original video are different, please check them manually.");
                     else if (deleteFiles)
                         File.Delete(video.Path);
+                    ReportVideoCompleted(video, reportInstance);
                 }
-                catch (OperationCanceledException e) { }
+                catch (OperationCanceledException) { }
                 catch (Exception e)
                 {
                     AddError(errors, video.Path, $"Error compressing the video: {e.Message}");
                     File.Delete(outputFilePath);
-                }
-                finally
-                {
-                    reportInstance.IncrementCompressedVideosCount();
-                    OnReport(100, video.FileName, reportInstance);
-                    reportInstance.RemovePercentage(video.FileName);
+                    ReportVideoCompleted(video, reportInstance);
                 }
             });
 
@@ -95,10 +91,17 @@ namespace VideoCompresser
             {
                 Directory.Delete(outputPath);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 AddError(errors, outputPath, "Couldn't clean the directory, please check it and delete it manually.");
             }
+        }
+
+        private void ReportVideoCompleted(Video video, CompressingReportBuilder reportInstance)
+        {
+            reportInstance.IncrementCompressedVideosCount();
+            OnReport(100, video.FileName, reportInstance);
+            reportInstance.RemovePercentage(video.FileName);
         }
 
         private void CompressVideo(Video video, string outputFilePath, CancellationToken token, CompressingReportBuilder reportInstance)
