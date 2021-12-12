@@ -12,7 +12,7 @@ namespace VideoCompresser
 {
     class Program
     {
-        static readonly string[] Title = new string[]
+        static readonly string[] _title = new string[]
         {
             "░█──░█ ─▀─ █▀▀▄ █▀▀ █▀▀█ ░█▀▀█ █▀▀█ █▀▄▀█ █▀▀█ █▀▀█ █▀▀ █▀▀ █▀▀ █▀▀ █▀▀█ ",
             "─░█░█─ ▀█▀ █──█ █▀▀ █──█ ░█─── █──█ █─▀─█ █──█ █▄▄▀ █▀▀ ▀▀█ ▀▀█ █▀▀ █▄▄▀ ",
@@ -25,7 +25,7 @@ namespace VideoCompresser
             Console.Clear();
             Console.Title = "Video Compresser";
 
-            ShowTitle(Title);
+            ShowTitle(_title);
             ShowVersion(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty);
 
             string path;
@@ -86,8 +86,7 @@ namespace VideoCompresser
             var stopWatch = new StopWatch();
             stopWatch.StartRecording();
             VideoCompresser videoCompresser = new(maxNumberOfVideos);
-            int previousLogLength = 1;
-            LogInfoMessage("Current: 0.00%; 0/0 videos.");
+            int previousLogLength = LogInfoMessage("Current: 0.00%\nCount: 0/0 videos.");
             videoCompresser.Report += (r) =>
             {
                 ClearPreviousLog(previousLogLength);
@@ -95,7 +94,7 @@ namespace VideoCompresser
                 StringBuilder builder = new(previousLogLength);
                 foreach (var item in r.Percentages)
                     builder.AppendLine($"{item.Key}: {item.Value:N2}%");
-                builder.AppendLine($"{r.CompressedVideosCount}/{r.VideosCount} videos.");
+                builder.AppendLine($"Count: {r.CompressedVideosCount}/{r.VideosCount} videos.");
 
                 previousLogLength = LogInfoMessage(builder.ToString());
             };
