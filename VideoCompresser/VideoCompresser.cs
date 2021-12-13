@@ -55,7 +55,7 @@ namespace VideoCompresser
             ParallelOptions configuration = new() { MaxDegreeOfParallelism = _maxNumberOfVideos };
             Parallel.ForEach(sortedVideos, configuration, (video) =>
             {
-                string outputFilePath = Path.Combine(outputPath, video.FileNameWithoutExtension+".mp4");
+                string outputFilePath = Path.Combine(outputPath, video.FileNameWithoutExtension + ".mp4");
                 try
                 {
                     soft.ThrowIfCancellationRequested();
@@ -112,7 +112,7 @@ namespace VideoCompresser
                     outputFilePath,
                     false,
                     options => options.WithVideoCodec("libx265").WithConstantRateFactor(CRF).WithFastStart())
-                .NotifyOnProgress(p=>OnReport(p, video.FileName, reportInstance), video.Duration)
+                .NotifyOnProgress(p => OnReport(p, video.FileName, reportInstance), video.Duration)
                 .CancellableThrough(token)
                 .ProcessSynchronously();
         }
@@ -139,7 +139,7 @@ namespace VideoCompresser
                 }
                 else
                 {
-                    Video video = new(videoPath, totalFrames.Value, videoStream.Duration, videoStream.AvgFrameRate);
+                    Video video = new(videoPath, totalFrames.Value, mediaInfo.Duration, videoStream.AvgFrameRate);
                     if (videos.TryAdd(video))
                         reportInstance.IncrementVideosCount();
                     else
@@ -156,7 +156,7 @@ namespace VideoCompresser
         {
             string[] filePaths = Directory.GetFiles(path);
             List<string> videoPaths = new(filePaths.Length);
-            
+
             foreach (var filePath in filePaths)
                 foreach (var validExtension in _validExtensions)
                     if (filePath.EndsWith(validExtension))
