@@ -92,7 +92,7 @@ namespace VideoCompresser
             });
 
             VideoCompresser videoCompresser = new(maxNumberOfVideos);
-            int previousLogLength = LogInfoMessage("Current: 0.00%\nCount: 0/0 videos.");
+            int previousLogLength = LogInfoMessage($"DIR: {path}\nCurrent: 0.00%\nCount: 0/0 videos.");
             Task.Run(async () =>
             {
                 await foreach (var report in videoCompresser.ReportChannel.ReadAllAsync())
@@ -100,6 +100,7 @@ namespace VideoCompresser
                     ClearPreviousLog(previousLogLength);
 
                     StringBuilder builder = new(previousLogLength);
+                    builder.AppendLine($"Folder: {report.CurrentDirectory}");
                     foreach (var item in report.Percentages)
                         builder.AppendLine($"{item.Key}: {item.Value:N2}%");
                     builder.AppendLine($"Count: {report.CompressedVideosCount}/{report.VideosCount} videos.");

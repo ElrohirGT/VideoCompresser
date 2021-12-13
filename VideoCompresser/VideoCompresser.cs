@@ -49,7 +49,7 @@ namespace VideoCompresser
 
         private void CompressVideosInFolder(string path, bool deleteFiles, ConcurrentDictionary<string, List<string>> errors, CancellationToken soft, CancellationToken instantToken)
         {
-            CompressingReportBuilder reportInstance = new();
+            CompressingReportBuilder reportInstance = new(path);
             string outputPath = Path.Combine(path, "Done");
             Directory.CreateDirectory(outputPath);
 
