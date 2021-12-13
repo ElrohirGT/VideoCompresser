@@ -25,7 +25,7 @@ namespace VideoCompresser
                 _title = new string[] { "VIDEO COMPRESSER" };
         }
 
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             Console.OutputEncoding = Encoding.Unicode;
             Console.Clear();
@@ -74,10 +74,32 @@ namespace VideoCompresser
             LogInfoMessage("Press q, force quit and cancel all compressions.");
             SubDivision();
 
-            CancellationTokenSource softCTS = new();
-            CancellationTokenSource instantCTS = new();
+            using CancellationTokenSource softCTS = new();
+            using CancellationTokenSource instantCTS = new();
 
-            Task.Run(() =>
+
+            int previousLogLength = LogInfoMessage($"Gathering information...");
+            VideoCompresser videoCompresser = new();
+            var compression = videoCompresser.CompressAllVideos(path, !notDeleteFiles, maxNumberOfVideos, softCTS.Token, instantCTS.Token);
+            var loggingTask = Task.Run(async () =>
+            {
+                await foreach (var report in compression.ReportChannel.ReadAllAsync())
+                {
+                    //INFO: The Console.CursorTop property doesn't work on the mac terminal.
+                    //TODO: Find out why we can't use ClearPreviousLog on Mac OS.
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                        ClearPreviousLog(previousLogLength);
+
+                    StringBuilder builder = new(previousLogLength);
+                    builder.AppendLine($"Folder: {report.CurrentDirectory}");
+                    foreach (var item in report.Percentages)
+                        builder.AppendLine($"{item.Key}: {item.Value:N2}%");
+                    builder.Append($"Count: {report.CompressedVideosCount}/{report.VideosCount} videos.");
+
+                    previousLogLength = LogInfoMessage(builder.ToString());
+                }
+            });
+            var commandTask = Task.Run(() =>
             {
                 while (true)
                 {
@@ -86,33 +108,15 @@ namespace VideoCompresser
                         softCTS.Cancel();
                     if (command.KeyChar == 'q')
                         instantCTS.Cancel();
-                    if (instantCTS.IsCancellationRequested)
-                        break;
                 }
-            });
-
-            VideoCompresser videoCompresser = new(maxNumberOfVideos);
-            int previousLogLength = LogInfoMessage($"DIR: {path}\nCurrent: 0.00%\nCount: 0/0 videos.");
-            Task.Run(async () =>
-            {
-                await foreach (var report in videoCompresser.ReportChannel.ReadAllAsync())
-                {
-                    ClearPreviousLog(previousLogLength);
-
-                    StringBuilder builder = new(previousLogLength);
-                    builder.AppendLine($"Folder: {report.CurrentDirectory}");
-                    foreach (var item in report.Percentages)
-                        builder.AppendLine($"{item.Key}: {item.Value:N2}%");
-                    builder.AppendLine($"Count: {report.CompressedVideosCount}/{report.VideosCount} videos.");
-
-                    previousLogLength = LogInfoMessage(builder.ToString());
-                }
-            });
+            }, instantCTS.Token);
             
             var stopWatch = new StopWatch();
             stopWatch.StartRecording();
-            var errors = videoCompresser.CompressAllVideos(path, !notDeleteFiles, softCTS.Token, instantCTS.Token);
+            var errors = compression.Start();
             stopWatch.StopRecording();
+
+            await loggingTask;
 
             Division();
             if (errors.Count == 0)
