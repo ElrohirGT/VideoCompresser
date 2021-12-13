@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using FFMpegCore;
-using FFMpegCore.Enums;
 
 namespace VideoCompresser
 {
@@ -63,7 +62,7 @@ namespace VideoCompresser
                     CompressVideo(video, outputFilePath, instantToken, reportInstance);
 
                     var newVideoInfo = FFProbe.Analyse(outputFilePath);
-                    if (newVideoInfo.Duration.TotalSeconds != video.Duration.TotalSeconds)
+                    if ((int)newVideoInfo.Duration.TotalSeconds != (int)video.Duration.TotalSeconds)
                         AddError(errors, video.Path, $"Durations of output video and original video are different, please check them manually.");
                     else if (deleteFiles)
                         File.Delete(video.Path);
