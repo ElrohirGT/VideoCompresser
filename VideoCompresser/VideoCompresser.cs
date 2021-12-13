@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 using FFMpegCore;
@@ -13,10 +14,12 @@ namespace VideoCompresser
     {
         private const int CRF = 30;
         private readonly int _maxNumberOfVideos;
+        private readonly Channel<CompressingReport> _channel = Channel.CreateUnbounded<CompressingReport>(new UnboundedChannelOptions() { SingleWriter = true });
         private readonly IEnumerable<string> _validExtensions = new string[] { ".mp4", ".webm" };
         private static object _lock = new();
 
-        public event Action<CompressingReport>? Report;
+        //TODO: This must be done in another way to ensure this class is completely thread safe.
+        public ChannelReader<CompressingReport> ReportChannel => _channel.Reader;
 
         public VideoCompresser(int maxNumberOfVideos) => _maxNumberOfVideos = maxNumberOfVideos;
 
@@ -120,7 +123,7 @@ namespace VideoCompresser
         {
             reportInstance.ChangePercentage(fileName, percentage);
             lock (_lock)
-                Report?.Invoke(reportInstance.AsReadonly());
+                _channel.Writer.TryWrite(reportInstance.AsReadonly());
         }
 
         private IEnumerable<Video> GetSortedVideos(string path, ConcurrentDictionary<string, List<string>> errors, CompressingReportBuilder reportInstance)

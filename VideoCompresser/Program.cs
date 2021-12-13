@@ -91,21 +91,25 @@ namespace VideoCompresser
                 }
             });
 
-            var stopWatch = new StopWatch();
-            stopWatch.StartRecording();
             VideoCompresser videoCompresser = new(maxNumberOfVideos);
             int previousLogLength = LogInfoMessage("Current: 0.00%\nCount: 0/0 videos.");
-            videoCompresser.Report += (r) =>
+            Task.Run(async () =>
             {
-                ClearPreviousLog(previousLogLength);
+                await foreach (var report in videoCompresser.ReportChannel.ReadAllAsync())
+                {
+                    ClearPreviousLog(previousLogLength);
 
-                StringBuilder builder = new(previousLogLength);
-                foreach (var item in r.Percentages)
-                    builder.AppendLine($"{item.Key}: {item.Value:N2}%");
-                builder.AppendLine($"Count: {r.CompressedVideosCount}/{r.VideosCount} videos.");
+                    StringBuilder builder = new(previousLogLength);
+                    foreach (var item in report.Percentages)
+                        builder.AppendLine($"{item.Key}: {item.Value:N2}%");
+                    builder.AppendLine($"Count: {report.CompressedVideosCount}/{report.VideosCount} videos.");
 
-                previousLogLength = LogInfoMessage(builder.ToString());
-            };
+                    previousLogLength = LogInfoMessage(builder.ToString());
+                }
+            });
+            
+            var stopWatch = new StopWatch();
+            stopWatch.StartRecording();
             var errors = videoCompresser.CompressAllVideos(path, !notDeleteFiles, softCTS.Token, instantCTS.Token);
             stopWatch.StopRecording();
 
