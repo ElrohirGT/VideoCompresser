@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -22,6 +23,15 @@ namespace VideoCompresser
         public ChannelReader<CompressingReport> ReportChannel => _channel.Reader;
 
         public VideoCompresser(int maxNumberOfVideos) => _maxNumberOfVideos = maxNumberOfVideos;
+
+        static VideoCompresser()
+        {
+            GlobalFFOptions.Configure((opt) =>
+            {
+                opt.BinaryFolder = "./ffmpeg 4.4/";
+                opt.WorkingDirectory = "./";
+            });
+        }
 
         public IDictionary<string, List<string>> CompressAllVideos(string path, bool deleteFiles, CancellationToken softToken, CancellationToken instantToken)
         {
