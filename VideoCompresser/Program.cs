@@ -12,12 +12,18 @@ namespace VideoCompresser
 {
     class Program
     {
-        static readonly string[] _title = new string[]
+        static readonly string[] _title =
         {
             "░█──░█ ─▀─ █▀▀▄ █▀▀ █▀▀█ ░█▀▀█ █▀▀█ █▀▄▀█ █▀▀█ █▀▀█ █▀▀ █▀▀ █▀▀ █▀▀ █▀▀█ ",
             "─░█░█─ ▀█▀ █──█ █▀▀ █──█ ░█─── █──█ █─▀─█ █──█ █▄▄▀ █▀▀ ▀▀█ ▀▀█ █▀▀ █▄▄▀ ",
             "──▀▄▀─ ▀▀▀ ▀▀▀─ ▀▀▀ ▀▀▀▀ ░█▄▄█ ▀▀▀▀ ▀───▀ █▀▀▀ ▀─▀▀ ▀▀▀ ▀▀▀ ▀▀▀ ▀▀▀ ▀─▀▀"
         };
+
+        static Program()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                _title = new string[] { "VIDEO COMPRESSER" };
+        }
 
         static void Main(string[] args)
         {
@@ -116,6 +122,7 @@ namespace VideoCompresser
                         LogInfoMessage($"\t- {item}");
                 }
             }
+            SubDivision();
             LogInfoMessage($"Time: {stopWatch.RecordedTime}.");
             Console.ReadLine();
         }
