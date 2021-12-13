@@ -16,7 +16,7 @@ namespace VideoCompresser
         private readonly IEnumerable<string> _validExtensions = new string[] { ".mp4", ".webm" };
         private static object _lock = new();
 
-        public event Action<CompressingReport> Report;
+        public event Action<CompressingReport>? Report;
 
         public VideoCompresser(int maxNumberOfVideos) => _maxNumberOfVideos = maxNumberOfVideos;
 
