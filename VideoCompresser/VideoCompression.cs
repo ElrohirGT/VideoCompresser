@@ -13,7 +13,6 @@ namespace VideoCompresser
     public class VideoCompression
     {
         readonly Channel<CompressingReport> _channel = Channel.CreateUnbounded<CompressingReport>(new UnboundedChannelOptions() { SingleWriter = true });
-        readonly object _lock = new();
 
         public string? InitialPath { get; init; }
         public bool DeleteFiles { get; init; }
@@ -117,8 +116,7 @@ namespace VideoCompresser
         private void OnReport(double percentage, string fileName, CompressingReportBuilder reportInstance)
         {
             reportInstance.ChangePercentage(fileName, percentage);
-            lock (_lock)
-                _channel.Writer.TryWrite(reportInstance.AsReadonly());
+            _channel.Writer.TryWrite(reportInstance.AsReadonly());
         }
 
         private IEnumerable<Video> GetSortedVideos(string path, ConcurrentDictionary<string, List<string>> errors, CompressingReportBuilder reportInstance)
