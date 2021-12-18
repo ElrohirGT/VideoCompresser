@@ -12,7 +12,7 @@ namespace VideoCompresser
 {
     public class VideoCompression
     {
-        readonly Channel<CompressingReport> _channel = Channel.CreateUnbounded<CompressingReport>(new UnboundedChannelOptions() { SingleWriter = true });
+        readonly Channel<CompressionReport> _channel = Channel.CreateUnbounded<CompressionReport>(new UnboundedChannelOptions() { SingleWriter = true });
 
         public string? InitialPath { get; init; }
         public bool DeleteFiles { get; init; }
@@ -21,7 +21,7 @@ namespace VideoCompresser
         public int MaxDegreeOfParalelism { get; init; }
         public IEnumerable<string>? ValidExtensions { get; init; }
         public int CRF { get; set; }
-        public ChannelReader<CompressingReport> ReportChannel => _channel.Reader;
+        public ChannelReader<CompressionReport> ReportChannel => _channel.Reader;
 
         public IDictionary<string, List<string>> Start()
         {
@@ -45,7 +45,7 @@ namespace VideoCompresser
 
         private void CompressVideosInFolder(string path, bool deleteFiles, ConcurrentDictionary<string, List<string>> errors, CancellationToken? soft, CancellationToken? instantToken)
         {
-            CompressingReportBuilder reportInstance = new(path);
+            CompressionReportBuilder reportInstance = new(path);
             string outputPath = Path.Combine(path, "Done");
             Directory.CreateDirectory(outputPath);
 
@@ -94,7 +94,7 @@ namespace VideoCompresser
                 AddError(errors, outputPath, "Couldn't clean the directory, please check it and delete it manually.");
             }
         }
-        private void CompressVideo(Video video, string outputFilePath, CancellationToken? token, CompressingReportBuilder reportInstance)
+        private void CompressVideo(Video video, string outputFilePath, CancellationToken? token, CompressionReportBuilder reportInstance)
         {
             var args = FFMpegArguments
                 .FromFileInput(video.Path)
@@ -107,19 +107,19 @@ namespace VideoCompresser
                 args.CancellableThrough(token.Value);
             args.ProcessSynchronously();
         }
-        private void ReportVideoCompleted(Video video, CompressingReportBuilder reportInstance)
+        private void ReportVideoCompleted(Video video, CompressionReportBuilder reportInstance)
         {
             reportInstance.IncrementCompressedVideosCount();
             OnReport(100, video.FileName, reportInstance);
             reportInstance.RemovePercentage(video.FileName);
         }
-        private void OnReport(double percentage, string fileName, CompressingReportBuilder reportInstance)
+        private void OnReport(double percentage, string fileName, CompressionReportBuilder reportInstance)
         {
             reportInstance.ChangePercentage(fileName, percentage);
             _channel.Writer.TryWrite(reportInstance.AsReadonly());
         }
 
-        private IEnumerable<Video> GetSortedVideos(string path, ConcurrentDictionary<string, List<string>> errors, CompressingReportBuilder reportInstance)
+        private IEnumerable<Video> GetSortedVideos(string path, ConcurrentDictionary<string, List<string>> errors, CompressionReportBuilder reportInstance)
         {
             BlockingSortedSet<Video> videos = new(Comparer<Video>.Create((v1, v2) => v1.TotalFrames.CompareTo(v2.TotalFrames)));
             Parallel.ForEach(GetVideoPaths(path), videoPath =>

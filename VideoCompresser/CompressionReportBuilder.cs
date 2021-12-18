@@ -5,16 +5,16 @@ using System.Threading;
 
 namespace VideoCompresser;
 
-public class CompressingReportBuilder
+public class CompressionReportBuilder
 {
     private int _compressedVideosCount = 0;
     private int _videosCount = 0;
-    private string _currentDirectory = string.Empty;
+    private readonly string _currentDirectory;
     private readonly ConcurrentDictionary<string, double> _dictionary = new();
 
-    public CompressingReportBuilder(string currentDirectory) => _currentDirectory = currentDirectory;
+    public CompressionReportBuilder(string currentDirectory) => _currentDirectory = currentDirectory;
 
-    public CompressingReport AsReadonly() => new(_compressedVideosCount, _videosCount, _dictionary, _currentDirectory);
+    public CompressionReport AsReadonly() => new(_compressedVideosCount, _videosCount, _dictionary, _currentDirectory);
 
     public void IncrementVideosCount() => Interlocked.Increment(ref _videosCount);
     public void IncrementCompressedVideosCount() => Interlocked.Increment(ref _compressedVideosCount);
@@ -26,4 +26,4 @@ public class CompressingReportBuilder
     public void RemovePercentage(string fileName) => _dictionary.TryRemove(fileName, out _);
 }
 
-public readonly record struct CompressingReport(int CompressedVideosCount, int VideosCount, IDictionary<string, double> Percentages, string CurrentDirectory);
+public readonly record struct CompressionReport(int CompressedVideosCount, int VideosCount, IDictionary<string, double> Percentages, string CurrentDirectory);
