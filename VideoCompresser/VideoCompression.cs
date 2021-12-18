@@ -67,8 +67,8 @@ namespace VideoCompresser
                         File.Delete(video.Path);
                     ReportVideoCompleted(video, reportInstance);
                 }
-                catch (OperationCanceledException) { }
-                catch (Exception e)
+                //This skips all exceptions that the tokens lift when cancelled
+                catch (Exception e) when (e is not OperationCanceledException)
                 {
                     AddError(errors, video.Path, $"Error compressing the video: {e.Message}");
                     File.Delete(outputFilePath);
@@ -78,11 +78,19 @@ namespace VideoCompresser
 
             if (!deleteFiles)
                 return;
+            if ((soft?.IsCancellationRequested ?? true) || (instantToken?.IsCancellationRequested ?? true))
+                return;
 
             Parallel.ForEach(Directory.GetFiles(outputPath, "*.mp4"), newVideoPath =>
             {
                 string destFilePath = Path.Combine(path, Path.GetFileName(newVideoPath));
-                File.Move(newVideoPath, destFilePath);
+                try
+                {
+                    File.Move(newVideoPath, destFilePath);
+                }catch(Exception e) when (!e.Message.Contains("already exists"))
+                {
+                    AddError(errors, destFilePath, $"Couldn't move the compressed file to the original position. {e.Message}");
+                }
             });
 
             try
