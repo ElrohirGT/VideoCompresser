@@ -1,142 +1,135 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
-using static ConsoleUtilitiesLite.ConsoleUtilitiesLite;
+
+using static ConsoleUtilitiesLite.ConsoleUtilities;
 
 namespace VideoCompresser
 {
-    class Program
+    internal class Program
     {
-        static readonly string[] Title = new string[]
+        private static readonly string[] _title =
         {
             "░█──░█ ─▀─ █▀▀▄ █▀▀ █▀▀█ ░█▀▀█ █▀▀█ █▀▄▀█ █▀▀█ █▀▀█ █▀▀ █▀▀ █▀▀ █▀▀ █▀▀█ ",
             "─░█░█─ ▀█▀ █──█ █▀▀ █──█ ░█─── █──█ █─▀─█ █──█ █▄▄▀ █▀▀ ▀▀█ ▀▀█ █▀▀ █▄▄▀ ",
             "──▀▄▀─ ▀▀▀ ▀▀▀─ ▀▀▀ ▀▀▀▀ ░█▄▄█ ▀▀▀▀ ▀───▀ █▀▀▀ ▀─▀▀ ▀▀▀ ▀▀▀ ▀▀▀ ▀▀▀ ▀─▀▀"
         };
 
-        public static readonly string FFMPEG_PATH = Path.Combine(AppContext.BaseDirectory, @"ffmpeg 4.4\ffmpeg.exe");
-        public static readonly string FFPLAY_PATH = Path.Combine(AppContext.BaseDirectory, @"ffmpeg 4.4\ffplay.exe");
-        public static readonly string FFPROBE_PATH = Path.Combine(AppContext.BaseDirectory, @"ffmpeg 4.4\ffprobe.exe");
-
         static Program()
         {
-            string baseDirectory = Path.Combine(AppContext.BaseDirectory, @"ffmpeg 4.4");
-            FFMPEG_PATH = Path.Combine(baseDirectory, "ffmpeg");
-            FFPLAY_PATH = Path.Combine(baseDirectory, "ffplay");
-            FFPROBE_PATH = Path.Combine(baseDirectory, "ffprobe");
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                FFMPEG_PATH += ".exe";
-                FFPLAY_PATH += ".exe";
-                FFPROBE_PATH += ".exe";
-            }
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                _title = new string[] { "VIDEO COMPRESSER" };
         }
 
-        static void Main(string[] args)
+        private static async Task Main(string[] args)
         {
-            Console.OutputEncoding = System.Text.Encoding.Unicode;
+            Console.OutputEncoding = Encoding.Unicode;
             Console.Clear();
-
-            //Console.WriteLine(FFMPEG_PATH);
-            //Console.WriteLine();
-            //Console.WriteLine(FFPLAY_PATH);
-            //Console.WriteLine();
-            //Console.WriteLine(FFPROBE_PATH);
-            //Console.WriteLine();
-
             Console.Title = "Video Compresser";
-            ShowTitle(Title);
-            ShowVersion(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString());
+
+            ShowTitle(_title);
+            ShowVersion(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty);
 
             string path;
             while (true)
             {
                 Console.Write("Please insert a path: ");
-                path = Console.ReadLine().Trim();
+                path = ReadConsoleLine().Trim();
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    path = Regex.Unescape(path);
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    path = path.Replace(@"""", string.Empty);
                 if (Directory.Exists(path))
                     break;
                 LogErrorMessage("Please write a valid path!");
             }
+            LogWarningMessage($"The path that will be used is: {path}");
 
-            Console.Write("Do you want to delete the file after compressing? (y/n): ");
-            bool deleteFiles = Console.ReadLine().Trim().ToLower().Equals("y");
-            if (deleteFiles)
-                LogWarningMessage("Files will be deleted after compressing.");
-            else
+            Console.Write("Do you want to delete the file after compressing? (y/n, default is yes): ");
+            bool notDeleteFiles = ReadConsoleLine().Trim().ToLower().Equals("n");
+            if (notDeleteFiles)
                 LogWarningMessage("Files will not be deleted after compressing.");
+            else
+                LogWarningMessage("Files will be deleted after compressing.");
 
-            int maxNumberOfVideos = 5;
+            int maxNumberOfVideos = 2;
             while (true)
             {
-                Console.Write("How many videos at a time can be converted? (more may slow the computer, default is 5): ");
-                string answer = Console.ReadLine().Trim();
+                Console.Write($"How many videos at a time can be converted? (more may slow the computer, default is {maxNumberOfVideos}): ");
+                string answer = ReadConsoleLine().Trim();
                 if (string.IsNullOrEmpty(answer))
                     break;
                 if (int.TryParse(answer, out maxNumberOfVideos))
                     break;
                 LogErrorMessage("Please write a valid number!");
             }
-            LogWarningMessage("{0} videos will be converted at the same time.", maxNumberOfVideos);
+            LogWarningMessage($"{maxNumberOfVideos} videos will be converted at the same time.");
 
-            //TODO Make compress videos recursively
             SubDivision();
-            new VideoCompresser(maxNumberOfVideos).CompressAllVideos(path, deleteFiles);
-        }
+            LogInfoMessage("Press s, to cancel after the current compression finished.");
+            LogInfoMessage("Press q, force quit and cancel all compressions.");
+            SubDivision();
 
-        #region Static Methods
-        internal static Task<string> ExecuteCommandAsync(ConsoleCommand command)
-        {
-            try
+            using CancellationTokenSource softCTS = new();
+            using CancellationTokenSource instantCTS = new();
+
+            int previousLogLength = LogInfoMessage($"Gathering information...");
+            var compression = VideoCompresser.CompressAllVideos(path, !notDeleteFiles, maxNumberOfVideos, softCTS.Token, instantCTS.Token);
+            var loggingTask = Task.Run(async () =>
             {
-                TaskCompletionSource<string> taskSource = new TaskCompletionSource<string>();
-                ProcessStartInfo procStartInfo =
-                    new ProcessStartInfo(command.Command, command.Args)
-                    {
-                        RedirectStandardOutput = true,
-                        RedirectStandardInput = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = false,
-                        WindowStyle = ProcessWindowStyle.Hidden,
-                    };
-
-                Process process = new Process() { StartInfo = procStartInfo, EnableRaisingEvents = true };
-                process.Exited += (sender, args) =>
+                await foreach (var report in compression.ReportChannel.ReadAllAsync())
                 {
-                    taskSource.SetResult(process.StandardOutput.ReadToEnd());
-                    process.Dispose();
-                };
+                    //INFO: The Console.CursorTop property doesn't work on the mac terminal.
+                    //TODO: Find out why we can't use ClearPreviousLog on Mac OS.
+                    //if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    ClearPreviousLog(previousLogLength);
 
-                process.Start();
-                return taskSource.Task;
-            }
-            catch (Exception) { throw; }
-        }
-        internal static string ExecuteCommandSync(ConsoleCommand command)
-        {
-            try
+                    StringBuilder builder = new(previousLogLength);
+                    builder.AppendLine($"Folder: {report.CurrentDirectory}");
+                    foreach (var item in report.Percentages)
+                        builder.AppendLine($"{item.Key}: {item.Value:N2}%");
+                    builder.Append($"Count: {report.CompressedVideosCount}/{report.VideosCount} videos.");
+
+                    previousLogLength = LogInfoMessage(builder.ToString());
+                }
+            });
+
+            CommandObserver commandObserver = new();
+            commandObserver.Add(new ConsoleCommand(ConsoleKey.S, softCTS.Cancel));
+            commandObserver.Add(new ConsoleCommand(ConsoleKey.Q, instantCTS.Cancel));
+            commandObserver.StartObserving(instantCTS.Token);
+
+            StopWatch stopWatch = new();
+            stopWatch.StartRecording();
+            var errors = compression.Start();
+            stopWatch.StopRecording();
+
+            commandObserver.StopObserving();
+            await loggingTask;
+
+            Division();
+            if (errors.Count == 0)
+                LogSuccessMessage("NO ERRORS!");
+            else
             {
-                ProcessStartInfo procStartInfo =
-                    new ProcessStartInfo(command.Command, command.Args)
-                    {
-                        RedirectStandardOutput = true,
-                        RedirectStandardInput = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = false,
-                        WindowStyle = ProcessWindowStyle.Hidden,
-                    };
-
-                using Process process = new Process() { StartInfo = procStartInfo };
-                process.Start();
-                process.WaitForExit();
-
-                string result = process.StandardOutput.ReadToEnd();
-                return result;
+                LogErrorMessage("ERRORS:");
+                foreach (var error in errors)
+                {
+                    LogErrorMessage(error.Key);
+                    foreach (var item in error.Value)
+                        LogInfoMessage($"\t- {item}");
+                }
             }
-            catch (Exception) { throw; }
+            SubDivision();
+            LogInfoMessage($"Time: {stopWatch.RecordedTime}.");
+            Console.WriteLine("Press any key to close the window...");
+            Console.ReadLine();
         }
-        #endregion
+
+        private static string ReadConsoleLine() => (Console.ReadLine() ?? string.Empty);
     }
 }
