@@ -5,9 +5,9 @@ using FFMpegCore;
 
 namespace VideoCompresser
 {
-    public partial class VideoCompresser
+    public static class VideoCompresser
     {
-        private readonly IEnumerable<string> _validExtensions = new string[] { ".mp4", ".webm" };
+        private static readonly IEnumerable<string> _validExtensions = new string[] { ".mp4", ".webm" };
 
         static VideoCompresser()
         {
@@ -18,7 +18,7 @@ namespace VideoCompresser
             });
         }
 
-        public VideoCompression CompressAllVideos(string path, bool deleteFiles=true, int maxDegreeOfParalelism=1, CancellationToken? softToken=null, CancellationToken? instantToken=null, int crf = 30)
+        public static VideoCompression CompressAllVideos(string path, bool deleteFiles=true, int maxDegreeOfParalelism=1, CancellationToken? softToken=null, CancellationToken? instantToken=null, int crf = 30)
         {
             return new VideoCompression
             {

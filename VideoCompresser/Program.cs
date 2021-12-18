@@ -79,8 +79,7 @@ namespace VideoCompresser
 
 
             int previousLogLength = LogInfoMessage($"Gathering information...");
-            VideoCompresser videoCompresser = new();
-            var compression = videoCompresser.CompressAllVideos(path, !notDeleteFiles, maxNumberOfVideos, softCTS.Token, instantCTS.Token);
+            var compression = VideoCompresser.CompressAllVideos(path, !notDeleteFiles, maxNumberOfVideos, softCTS.Token, instantCTS.Token);
             var loggingTask = Task.Run(async () =>
             {
                 await foreach (var report in compression.ReportChannel.ReadAllAsync())
