@@ -97,23 +97,18 @@ namespace VideoCompresser
                     previousLogLength = LogInfoMessage(builder.ToString());
                 }
             });
-            var commandTask = Task.Run(() =>
-            {
-                while (true)
-                {
-                    ConsoleKeyInfo command = Console.ReadKey(true);
-                    if (command.KeyChar == 's')
-                        softCTS.Cancel();
-                    if (command.KeyChar == 'q')
-                        instantCTS.Cancel();
-                }
-            }, instantCTS.Token);
 
-            var stopWatch = new StopWatch();
+            CommandObserver commandObserver = new();
+            commandObserver.Add(new ConsoleCommand(ConsoleKey.S, softCTS.Cancel));
+            commandObserver.Add(new ConsoleCommand(ConsoleKey.Q, instantCTS.Cancel));
+            commandObserver.StartObserving(instantCTS.Token);
+
+            StopWatch stopWatch = new();
             stopWatch.StartRecording();
             var errors = compression.Start();
             stopWatch.StopRecording();
 
+            commandObserver.StopObserving();
             await loggingTask;
 
             Division();
@@ -131,6 +126,7 @@ namespace VideoCompresser
             }
             SubDivision();
             LogInfoMessage($"Time: {stopWatch.RecordedTime}.");
+            Console.WriteLine("Press any key to close the window...");
             Console.ReadLine();
         }
 
