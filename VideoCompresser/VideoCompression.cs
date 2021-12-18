@@ -58,7 +58,7 @@ namespace VideoCompresser
                 {
                     soft?.ThrowIfCancellationRequested();
                     instantToken?.ThrowIfCancellationRequested();
-                    CompressVideo(video, outputFilePath, instantToken, reportInstance);
+                    CompressVideo(video, outputFilePath, reportInstance, instantToken);
 
                     var newVideoInfo = FFProbe.Analyse(outputFilePath);
                     if ((int)newVideoInfo.Duration.TotalSeconds != (int)video.Duration.TotalSeconds)
@@ -68,7 +68,8 @@ namespace VideoCompresser
                     ReportVideoCompleted(video, reportInstance);
                 }
                 //This skips all exceptions that the tokens lift when cancelled
-                catch (Exception e) when (e is not OperationCanceledException)
+                catch (OperationCanceledException ex) { }
+                catch (Exception e)
                 {
                     AddError(errors, video.Path, $"Error compressing the video: {e.Message}");
                     File.Delete(outputFilePath);
@@ -78,7 +79,7 @@ namespace VideoCompresser
 
             if (!deleteFiles)
                 return;
-            if ((soft?.IsCancellationRequested ?? true) || (instantToken?.IsCancellationRequested ?? true))
+            if (IsTokenCancelled(soft) || IsTokenCancelled(instantToken))
                 return;
 
             Parallel.ForEach(Directory.GetFiles(outputPath, "*.mp4"), newVideoPath =>
@@ -88,7 +89,8 @@ namespace VideoCompresser
                 {
                     File.Move(newVideoPath, destFilePath);
                 }
-                catch (Exception e) when (!e.Message.Contains("already exists"))
+                catch (IOException e) when (e.Message.Contains("already exists")) { }
+                catch (Exception e)
                 {
                     AddError(errors, destFilePath, $"Couldn't move the compressed file to the original position. {e.Message}");
                 }
@@ -104,7 +106,9 @@ namespace VideoCompresser
             }
         }
 
-        private void CompressVideo(Video video, string outputFilePath, CancellationToken? token, CompressionReportBuilder reportInstance)
+        private static bool IsTokenCancelled(CancellationToken? soft) => (soft?.IsCancellationRequested ?? false);
+
+        private void CompressVideo(Video video, string outputFilePath, CompressionReportBuilder reportInstance, CancellationToken? token)
         {
             var args = FFMpegArguments
                 .FromFileInput(video.Path)
