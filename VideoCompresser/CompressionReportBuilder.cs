@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -17,12 +16,15 @@ public class CompressionReportBuilder
     public CompressionReport AsReadonly() => new(_compressedVideosCount, _videosCount, _dictionary, _currentDirectory);
 
     public void IncrementVideosCount() => Interlocked.Increment(ref _videosCount);
+
     public void IncrementCompressedVideosCount() => Interlocked.Increment(ref _compressedVideosCount);
+
     public void ChangePercentage(string fileName, double percentage)
     {
         _dictionary.TryAdd(fileName, percentage);
         _dictionary[fileName] = percentage;
     }
+
     public void RemovePercentage(string fileName) => _dictionary.TryRemove(fileName, out _);
 }
 

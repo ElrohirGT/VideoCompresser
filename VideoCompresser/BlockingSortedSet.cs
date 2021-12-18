@@ -9,12 +9,15 @@ namespace VideoCompresser
 {
     public class BlockingSortedSet<T> : IProducerConsumerCollection<T>
     {
-        readonly object _lock = new();
-        readonly SortedSet<T> _set;
+        private readonly object _lock = new();
+        private readonly SortedSet<T> _set;
 
         public BlockingSortedSet() => _set = new SortedSet<T>();
+
         public BlockingSortedSet(IComparer<T>? comparer) => _set = new SortedSet<T>(comparer);
+
         public BlockingSortedSet(IEnumerable<T> collection) => _set = new SortedSet<T>(collection);
+
         public BlockingSortedSet(IEnumerable<T> collection, IComparer<T>? comparer) => _set = new SortedSet<T>(collection, comparer);
 
         public int Count => _set.Count;
@@ -26,6 +29,7 @@ namespace VideoCompresser
             lock (_lock)
                 ((ICollection)_set).CopyTo(array, index);
         }
+
         public void CopyTo(Array array, int index)
         {
             lock (_lock)
@@ -33,7 +37,9 @@ namespace VideoCompresser
         }
 
         public IEnumerator<T> GetEnumerator() => _set.GetEnumerator();
+
         public T[] ToArray() => _set.ToArray();
+
         public bool TryAdd(T item)
         {
             lock (_lock)

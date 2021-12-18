@@ -18,7 +18,7 @@ namespace VideoCompresser
             });
         }
 
-        public static VideoCompression CompressAllVideos(string path, bool deleteFiles=true, int maxDegreeOfParalelism=1, CancellationToken? softToken=null, CancellationToken? instantToken=null, int crf = 30)
+        public static VideoCompression CompressAllVideos(string path, bool deleteFiles = true, int maxDegreeOfParalelism = 1, CancellationToken? softToken = null, CancellationToken? instantToken = null, int crf = 30)
         {
             return new VideoCompression
             {

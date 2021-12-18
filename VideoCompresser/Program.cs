@@ -1,18 +1,18 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+
 using static ConsoleUtilitiesLite.ConsoleUtilities;
 
 namespace VideoCompresser
 {
-    class Program
+    internal class Program
     {
-        static readonly string[] _title =
+        private static readonly string[] _title =
         {
             "░█──░█ ─▀─ █▀▀▄ █▀▀ █▀▀█ ░█▀▀█ █▀▀█ █▀▄▀█ █▀▀█ █▀▀█ █▀▀ █▀▀ █▀▀ █▀▀ █▀▀█ ",
             "─░█░█─ ▀█▀ █──█ █▀▀ █──█ ░█─── █──█ █─▀─█ █──█ █▄▄▀ █▀▀ ▀▀█ ▀▀█ █▀▀ █▄▄▀ ",
@@ -25,7 +25,7 @@ namespace VideoCompresser
                 _title = new string[] { "VIDEO COMPRESSER" };
         }
 
-        static async Task Main(string[] args)
+        private static async Task Main(string[] args)
         {
             Console.OutputEncoding = Encoding.Unicode;
             Console.Clear();
@@ -77,7 +77,6 @@ namespace VideoCompresser
             using CancellationTokenSource softCTS = new();
             using CancellationTokenSource instantCTS = new();
 
-
             int previousLogLength = LogInfoMessage($"Gathering information...");
             var compression = VideoCompresser.CompressAllVideos(path, !notDeleteFiles, maxNumberOfVideos, softCTS.Token, instantCTS.Token);
             var loggingTask = Task.Run(async () =>
@@ -87,7 +86,7 @@ namespace VideoCompresser
                     //INFO: The Console.CursorTop property doesn't work on the mac terminal.
                     //TODO: Find out why we can't use ClearPreviousLog on Mac OS.
                     //if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                        ClearPreviousLog(previousLogLength);
+                    ClearPreviousLog(previousLogLength);
 
                     StringBuilder builder = new(previousLogLength);
                     builder.AppendLine($"Folder: {report.CurrentDirectory}");
@@ -109,7 +108,7 @@ namespace VideoCompresser
                         instantCTS.Cancel();
                 }
             }, instantCTS.Token);
-            
+
             var stopWatch = new StopWatch();
             stopWatch.StartRecording();
             var errors = compression.Start();

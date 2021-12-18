@@ -12,7 +12,7 @@ namespace VideoCompresser
 {
     public class VideoCompression
     {
-        readonly Channel<CompressionReport> _channel = Channel.CreateUnbounded<CompressionReport>(new UnboundedChannelOptions() { SingleWriter = true });
+        private readonly Channel<CompressionReport> _channel = Channel.CreateUnbounded<CompressionReport>(new UnboundedChannelOptions() { SingleWriter = true });
 
         public string? InitialPath { get; init; }
         public bool DeleteFiles { get; init; }
@@ -87,7 +87,8 @@ namespace VideoCompresser
                 try
                 {
                     File.Move(newVideoPath, destFilePath);
-                }catch(Exception e) when (!e.Message.Contains("already exists"))
+                }
+                catch (Exception e) when (!e.Message.Contains("already exists"))
                 {
                     AddError(errors, destFilePath, $"Couldn't move the compressed file to the original position. {e.Message}");
                 }
@@ -102,6 +103,7 @@ namespace VideoCompresser
                 AddError(errors, outputPath, "Couldn't clean the directory, please check it and delete it manually.");
             }
         }
+
         private void CompressVideo(Video video, string outputFilePath, CancellationToken? token, CompressionReportBuilder reportInstance)
         {
             var args = FFMpegArguments
@@ -115,12 +117,14 @@ namespace VideoCompresser
                 args.CancellableThrough(token.Value);
             args.ProcessSynchronously();
         }
+
         private void ReportVideoCompleted(Video video, CompressionReportBuilder reportInstance)
         {
             reportInstance.IncrementCompressedVideosCount();
             OnReport(100, video.FileName, reportInstance);
             reportInstance.RemovePercentage(video.FileName);
         }
+
         private void OnReport(double percentage, string fileName, CompressionReportBuilder reportInstance)
         {
             reportInstance.ChangePercentage(fileName, percentage);
@@ -172,6 +176,7 @@ namespace VideoCompresser
             errors.TryAdd(key, new List<string>());
             errors[key].AddRange(value);
         }
+
         private static void AddError(ConcurrentDictionary<string, List<string>> errors, string key, string value)
         {
             errors.TryAdd(key, new List<string>());
