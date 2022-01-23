@@ -5,32 +5,26 @@
     <TargetFramework>net6</TargetFramework>
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <AssemblyVersion>2.1.0.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ConsoleUtilitiesLite" Version="6.1.0" />
+    <PackageReference Include="ConsoleUtilitiesLite" Version="6.2.2" />
     <PackageReference Include="FFMpegCore" Version="4.7.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="ffmpeg 4.4\ffmpeg.exe">
+    <None Update="ffmpeg 5.0\ffmpeg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="ffmpeg 4.4\ffplay.exe">
+    <None Update="ffmpeg 5.0\ffmpeg.exe">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="ffmpeg 4.4\ffprobe.exe">
+    <None Update="ffmpeg 5.0\ffprobe">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="ffmpeg 4.4\ffmpeg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="ffmpeg 4.4\ffplay">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="ffmpeg 4.4\ffprobe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <None Update="ffmpeg 5.0\ffprobe.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

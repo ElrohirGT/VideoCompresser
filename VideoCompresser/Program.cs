@@ -6,6 +6,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
+using ConsoleUtilitiesLite;
+
 using static ConsoleUtilitiesLite.ConsoleUtilities;
 
 namespace VideoCompresser
@@ -69,19 +71,24 @@ namespace VideoCompresser
             }
             LogWarningMessage($"{maxNumberOfVideos} videos will be converted at the same time.");
 
-            SubDivision();
-            LogInfoMessage("Press s to cancel after the current compression finished.");
-            LogInfoMessage("Press q force quit and cancel all compressions.");
-            LogInfoMessage("Press + to increment the logging severity.");
-            LogInfoMessage("Press - to decrement the logging severity.");
-            SubDivision();
-
             using CancellationTokenSource softCTS = new();
             using CancellationTokenSource instantCTS = new();
+            int loggingLevel = (int)LoggingLevel.ShowProgress;
+
+            CommandObserver commandObserver = new();
+            commandObserver.Add(new ConsoleCommand(ConsoleKey.S, softCTS.Cancel, "cancel the compresion after the current one(s) finishes."));
+            commandObserver.Add(new ConsoleCommand(ConsoleKey.Q, instantCTS.Cancel, "cancel the compression immediately."));
+            commandObserver.Add(new ConsoleCommand(ConsoleKey.OemMinus, () => DecrementLoggingLevel(ref loggingLevel), "decrement the logging level."));
+            commandObserver.Add(new ConsoleCommand(ConsoleKey.OemPlus, () => IncrementLoggingLevel(ref loggingLevel), "increment the logging level."));
+            commandObserver.StartObserving(instantCTS.Token);
+
+            SubDivision();
+            foreach (var command in commandObserver.Commands)
+                LogInfoMessage($"Press {command.ActivatorKey} to {command.Description}");
+            SubDivision();
 
             var previousLogLength = LogInfoMessage($"Gathering information...");
             var compression = VideoCompresser.CompressAllVideos(path, !notDeleteFiles, maxNumberOfVideos, softCTS.Token, instantCTS.Token);
-            int loggingLevel = (int)LoggingLevel.ShowProgress;
             var loggingTask = Task.Run(async () =>
             {
                 await foreach (var report in compression.ReportChannel.ReadAllAsync())
@@ -97,23 +104,20 @@ namespace VideoCompresser
                     }
 
                     StringBuilder builder = new();
+                    float totalPercentage = 0;
                     if (loggingLevel >= (int)LoggingLevel.ShowFolder)
                         builder.AppendLine($"Folder: {report.CurrentDirectory}");
                     if (loggingLevel >= (int)LoggingLevel.ShowProgress)
                         foreach (var item in report.Percentages)
                             builder.AppendLine($"{item.Key}: {item.Value:N2}%");
-                    builder.Append($"Count: {report.CompressedVideosCount}/{report.VideosCount} videos.");
+                    
+                    foreach (var percentage in report.Percentages.Values)
+                        totalPercentage += (float)percentage / 100 * 1/report.VideosCount;
+                    builder.Append($"Count: {report.CompressedVideosCount}/{report.VideosCount} videos. {ConsoleProgressBar.CreateProgressBar(totalPercentage)}");
 
                     previousLogLength = LogInfoMessage(builder.ToString());
                 }
             });
-
-            CommandObserver commandObserver = new();
-            commandObserver.Add(new ConsoleCommand(ConsoleKey.S, softCTS.Cancel));
-            commandObserver.Add(new ConsoleCommand(ConsoleKey.Q, instantCTS.Cancel));
-            commandObserver.Add(new ConsoleCommand(ConsoleKey.OemMinus, () => DecrementLoggingLevel(ref loggingLevel)));
-            commandObserver.Add(new ConsoleCommand(ConsoleKey.OemPlus, () => IncrementLoggingLevel(ref loggingLevel)));
-            commandObserver.StartObserving(instantCTS.Token);
 
             StopWatch stopWatch = new();
             stopWatch.StartRecording();
