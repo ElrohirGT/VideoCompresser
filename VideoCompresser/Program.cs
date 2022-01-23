@@ -79,7 +79,7 @@ namespace VideoCompresser
             using CancellationTokenSource softCTS = new();
             using CancellationTokenSource instantCTS = new();
 
-            int previousLogLength = LogInfoMessage($"Gathering information...");
+            var previousLogLength = LogInfoMessage($"Gathering information...");
             var compression = VideoCompresser.CompressAllVideos(path, !notDeleteFiles, maxNumberOfVideos, softCTS.Token, instantCTS.Token);
             int loggingLevel = (int)LoggingLevel.ShowProgress;
             var loggingTask = Task.Run(async () =>
@@ -92,11 +92,11 @@ namespace VideoCompresser
                     ClearPreviousLog(previousLogLength);
                     if (loggingLevel == (int)LoggingLevel.None)
                     {
-                        previousLogLength = 0;
+                        previousLogLength = Array.Empty<int>();
                         continue;
                     }
 
-                    StringBuilder builder = new(previousLogLength);
+                    StringBuilder builder = new();
                     if (loggingLevel >= (int)LoggingLevel.ShowFolder)
                         builder.AppendLine($"Folder: {report.CurrentDirectory}");
                     if (loggingLevel >= (int)LoggingLevel.ShowProgress)

@@ -13,7 +13,7 @@ namespace VideoCompresser
         {
             GlobalFFOptions.Configure((opt) =>
             {
-                opt.BinaryFolder = "./ffmpeg 4.4/";
+                opt.BinaryFolder = "./ffmpeg 5.0/";
                 opt.WorkingDirectory = "./";
             });
         }
