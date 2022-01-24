@@ -3,6 +3,7 @@ This is a personal project of mine, I needed to compress a lot of videos to make
 
 ## Usage
 Here's a gif of how the current version is used.
+![image](./readmeimgs/howToUse.gif)
 
 
 ## Installation
