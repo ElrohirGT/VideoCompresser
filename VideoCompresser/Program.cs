@@ -95,8 +95,8 @@ namespace VideoCompresser
                 {
                     //INFO: The Console.CursorTop property doesn't work on the mac terminal.
                     //TODO: Find out why we can't use ClearPreviousLog on Mac OS.
-                    //if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                    ClearPreviousLog(previousLogLength);
+                    if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                        ClearPreviousLog(previousLogLength);
                     if (loggingLevel == (int)LoggingLevel.None)
                     {
                         previousLogLength = Array.Empty<int>();
