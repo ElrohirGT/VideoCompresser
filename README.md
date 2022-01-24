@@ -1,5 +1,5 @@
 # Video Compresser
-This is a personal project of mine, I needed to compress a lot of videos to make it easier to upload them to the cloud and this was just perfect to leave it over night compressing.
+This is a personal project of mine, I needed to compress a lot of videos to make it easier to upload them to the cloud and this was just perfect to leave it over night compressing. The way it works is it converts all the videos to .mp4 using h.265 as the enconder, which is the best enconder I've found so far, it normally reduces the file size by half.
 
 ## Usage
 Here's a gif of how the current version is used.
