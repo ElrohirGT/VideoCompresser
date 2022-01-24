@@ -84,7 +84,7 @@ namespace VideoCompresser
 
             SubDivision();
             foreach (var command in commandObserver.Commands)
-                LogInfoMessage($"Press {command.ActivatorKey} to {command.Description}");
+                LogInfoMessage($"Press {command.ActivatorKey.ToString().ToLowerInvariant()} to {command.Description}");
             SubDivision();
 
             var previousLogLength = LogInfoMessage($"Gathering information...");
