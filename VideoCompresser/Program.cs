@@ -104,15 +104,17 @@ namespace VideoCompresser
                     }
 
                     StringBuilder builder = new();
-                    float totalPercentage = 0;
                     if (loggingLevel >= (int)LoggingLevel.ShowFolder)
                         builder.AppendLine($"Folder: {report.CurrentDirectory}");
                     if (loggingLevel >= (int)LoggingLevel.ShowProgress)
                         foreach (var item in report.Percentages)
                             builder.AppendLine($"{item.Key}: {item.Value:N2}%");
-                    
+
+                    int denominator = (report.VideosCount == 0) ? 1 : report.VideosCount;
+                    float totalPercentage = report.CompressedVideosCount / denominator * 100;
                     foreach (var percentage in report.Percentages.Values)
-                        totalPercentage += (float)percentage / 100 * 1/report.VideosCount;
+                        totalPercentage += (float)percentage / 100 * 1 / report.VideosCount;
+
                     builder.Append($"Count: {report.CompressedVideosCount}/{report.VideosCount} videos. {ConsoleProgressBar.CreateProgressBar(totalPercentage)}");
 
                     previousLogLength = LogInfoMessage(builder.ToString());
