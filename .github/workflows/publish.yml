@@ -13,6 +13,7 @@ jobs:
     - name: Get Tag Message
       run: |
         echo ::set-output name=RELEASE_MESSAGE::$(git tag -l --format='%(contents:subject)' ${{ github.ref_name }})
+        echo 'The message is: ${{ steps.vars.outputs.RELEASE_MESSAGE }}'
     - name: Github Release
       uses: elgohr/Github-Release-Action@v3.1
       env:
