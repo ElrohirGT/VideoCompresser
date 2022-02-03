@@ -11,13 +11,13 @@ jobs:
     - uses: actions/checkout@v2
     - name: Get Tag Message
       run: |
-        echo ::set-output name=RELEASE_MESSAGE::$(git tag -l --format='%(contents:subject)' ${{ github.ref_name }})
+        echo RELEASE_MESSAGE=$(git tag -l --format='%(contents:subject)' ${{ github.ref_name }})
     - name: Show Message
       run: |
-        echo 'The message is: ${{ steps.vars.outputs.RELEASE_MESSAGE }}'
+        echo 'The message is: ${{ env.RELEASE_MESSAGE }}'
     - name: Github Release
       uses: elgohr/Github-Release-Action@v3.1
       env:
         GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
       with:
-        args: ${{ steps.vars.outputs.RELEASE_MESSAGE }}
+        args: ${{ env.RELEASE_MESSAGE }}
