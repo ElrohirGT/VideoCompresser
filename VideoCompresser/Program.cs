@@ -14,7 +14,7 @@ namespace VideoCompresser
 {
     internal class Program
     {
-        private static readonly string[] _title =
+        private static readonly string[] _header =
         {
             "░█──░█ ─▀─ █▀▀▄ █▀▀ █▀▀█ ░█▀▀█ █▀▀█ █▀▄▀█ █▀▀█ █▀▀█ █▀▀ █▀▀ █▀▀ █▀▀ █▀▀█ ",
             "─░█░█─ ▀█▀ █──█ █▀▀ █──█ ░█─── █──█ █─▀─█ █──█ █▄▄▀ █▀▀ ▀▀█ ▀▀█ █▀▀ █▄▄▀ ",
@@ -24,7 +24,7 @@ namespace VideoCompresser
         static Program()
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                _title = new string[] { "VIDEO COMPRESSER" };
+                _header = new string[] { "VIDEO COMPRESSER" };
         }
 
         private static async Task Main(string[] args)
@@ -33,7 +33,7 @@ namespace VideoCompresser
             Console.Clear();
             Console.Title = "Video Compresser";
 
-            ShowTitle(_title);
+            ShowTitle(_header);
             ShowVersion(System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty);
 
             string path;
